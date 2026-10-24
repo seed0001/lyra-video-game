@@ -401,7 +401,7 @@ renderer.setAnimationLoop(() => {
   skyT += dt;
   if (skyT > (timeRate > 1 || k.has('BracketRight') || k.has('BracketLeft') ? 0 : 1)) { skyT = 0; syncSky(); }
 
-  const castAtGate = cast.update(simMs, dt * timeRate);
+  const castAtGate = cast.update(simMs, dt * timeRate, dt);
   dc.gate.auto = traffic.update(simMs, dt * timeRate) || castAtGate;
   halls.update(camera.position);
   people.update(simMs, camera.position, halls.current);

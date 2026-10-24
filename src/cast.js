@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { castRoute, dayIndex, dayStart, dayOfWeek, CITY_NAMES } from './commute.js';
 import { outdoor, OPS_DOOR, OPS_STEP, LINES_Z } from './people.js';
 import { HOMES, VIRA_STALLS } from './homes.js';
-import { loadVehicle } from './models.js';
+import { loadVehicle, loadModel } from './models.js';
 import { bikeGeo } from './juno.js';
 import { toWorld } from './interiors.js';
 import { getHeight, TOWN_Z } from './terrain.js';
@@ -11,8 +11,9 @@ import { localClock } from './sun.js';
 
 // The series cast on their daily schedules: Marcus rides in from Saltbrush, Nova drives down from
 // the hills above Halcyon, Juno brings the trike over from Ironwood, and James and Solo spend their
-// days at Vira. Until the cast has avatars they're drawn with the staff's bodies (people.js) in
-// their own clothes (from story/characters/cast_card.png), with a name tag over their heads.
+// days at Vira. Those with a model (from Meshy, converted to Draco GLB) walk and idle in it; the rest
+// are drawn with the staff's bodies (people.js) in their own clothes (story/characters/cast_card.png)
+// until they have one. Everyone has a name tag over their head.
 // Like the staff, where everyone is is a pure function of the world clock.
 const MIN = 60000, HOUR = 3600000, WALK = 1.35, MOUNT = 1.5 * MIN;
 const OPS_FL = 0.15;                 // the operations building's floor (interiorVira.js FL)
@@ -45,6 +46,7 @@ const CAST = [
   },
   {
     id: 'nova', name: 'Nova', tag: '#d8b4ff', title: 'Human-AI psychology',
+    model: 'assets/characters/nova.glb', height: 1.7,
     look: { shirt: '#202022', pants: '#93a7bc', skin: '#f1c8a6', hat: '#2a1c15', scale: 0.97 },
     vehicle: 'nova_car',
     shift: (d) => (dayOfWeek(d) % 6 ? [9, 17.5] : null),
@@ -82,6 +84,7 @@ const CAST = [
   },
   {
     id: 'solo', name: 'Solo', tag: '#ff7a8a', title: "Lyra's guest",
+    model: 'assets/characters/solo.glb', height: 1.78,
     look: { shirt: '#6b2a27', pants: '#3f5878', skin: '#d9a77f', hat: '#241912', scale: 1.0 },
     visitor: true,
     shift: () => [9.5, 20],
@@ -128,6 +131,31 @@ function buildBike() {
   m.castShadow = m.receiveShadow = true;
   g.add(m);
   return g;
+}
+
+// A cast member's own model: scaled to their height, with idle and walk cycles to blend between.
+async function rig(def) {
+  const gltf = await loadModel(def.model);
+  const obj = gltf.scene;
+  obj.traverse((o) => {
+    if (!o.isMesh) return;
+    o.castShadow = o.receiveShadow = true;
+    o.frustumCulled = false; // skinned: the bind-pose bounds don't follow the animation
+    const m = o.material;
+    if (m.emissiveMap) { m.emissiveMap = null; m.emissive.set(0x000000); } // Meshy bakes the colour in as emission too
+  });
+  const box = new THREE.Box3().setFromObject(obj);
+  const s = def.height / (box.max.y - box.min.y);
+  obj.scale.setScalar(s);
+  obj.position.y = -box.min.y * s;
+  const root = new THREE.Group();
+  root.add(obj);
+  root.visible = false;
+  const mixer = new THREE.AnimationMixer(obj);
+  const clip = (re) => gltf.animations.find((a) => re.test(a.name)) || gltf.animations[0];
+  const actions = { idle: mixer.clipAction(clip(/Idle/)), walk: mixer.clipAction(clip(/Walking/)) };
+  for (const a of Object.values(actions)) { a.play(); a.setEffectiveWeight(0); }
+  return { root, mixer, actions, walkW: 0 };
 }
 
 // ---------- a day at Vira ----------
@@ -261,6 +289,9 @@ export async function buildCast({ novaHome, junoHome, ops, staff }) {
     m.tagSprite = nameTag(def.name, def.tag);
     m.tagSprite.visible = false;
     group.add(m.tagSprite);
+    if (def.model) {
+      try { m.rig = await rig(def); group.add(m.rig.root); } catch (e) { console.warn('cast model failed', def.model, e); }
+    }
     if (!def.visitor) {
       m.home = homes[def.id];
       const stall = stalls[si++] || VIRA_STALLS[si];
@@ -322,7 +353,7 @@ export async function buildCast({ novaHome, junoHome, ops, staff }) {
     m.pos.set(x, y, z);
   }
 
-  function update(t, dt) {
+  function update(t, dt, realDt = dt) {
     nearGate = false;
     for (const m of members) {
       const st = stateAt(m, t);
@@ -388,6 +419,16 @@ export async function buildCast({ novaHome, junoHome, ops, staff }) {
         }
       }
     }
+    // models: blend toward the walk cycle while moving, the idle while standing
+    for (const m of members) {
+      const r = m.rig;
+      if (!r || !m.drawn) continue;
+      const k = 1 - Math.exp(-Math.min(realDt, 0.1) * 8);
+      r.walkW += ((m.w.moving ? 1 : 0) - r.walkW) * k;
+      r.actions.walk.setEffectiveWeight(r.walkW);
+      r.actions.idle.setEffectiveWeight(1 - r.walkW);
+      r.mixer.update(Math.min(realDt, 0.1));
+    }
     return nearGate;
   }
 
@@ -397,7 +438,11 @@ export async function buildCast({ novaHome, junoHome, ops, staff }) {
     for (const m of members) {
       const anchor = m.drawn ? m.pos : m.inCar && m.carPos ? v.set(m.carPos.x, m.carPos.y, m.carPos.z) : null;
       const dist = anchor ? anchor.distanceTo(cam) : Infinity;
-      if (m.drawn && dist < 1600) drawn.push({ look: m.look, w: m.w, y: m.drawY });
+      if (m.rig) {
+        const show = m.drawn && dist < 1600;
+        m.rig.root.visible = show;
+        if (show) { m.rig.root.position.set(m.pos.x, m.drawY, m.pos.z); m.rig.root.rotation.y = m.w.h; }
+      } else if (m.drawn && dist < 1600) drawn.push({ look: m.look, w: m.w, y: m.drawY });
       const tag = m.tagSprite;
       tag.visible = dist < 3000;
       if (tag.visible) tag.position.set(anchor.x, anchor.y + (m.drawn ? 1.95 * m.look.scale + (m.w.pose === 'sit' ? -0.35 : 0) : 2.2), anchor.z);

@@ -53,3 +53,6 @@ export async function loadVehicle(name) {
   g.userData.vehicle = name;
   return g;
 }
+
+// A rigged character (a single copy, with its animations): { scene, animations }.
+export const loadModel = (file) => loader.loadAsync(file);
