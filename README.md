@@ -37,12 +37,19 @@ There are no environment variables to set. On Railway, files under `assets/` are
 | U | walk into the next data hall |
 | V / B | follow a commuter's car / the nearest car |
 | E | follow the nearest worker on foot |
+| R | follow the cast (Marcus, Nova, Juno, James, Solo) |
 | G, Q, H | Vira's gate, render quality, hide help |
 
 ## What's where
 
 - `index.html`, `src/`: the game. `src/main.js` wires everything together.
+  `src/cast.js` puts the series cast on their daily schedules: Marcus rides in from Saltbrush, Nova
+  drives down from the hills above Halcyon, Juno brings the trike over from Ironwood, and James and
+  Solo spend their days at Vira. Until they have avatars they're drawn like the staff, in their own
+  clothes, with name tags.
 - `assets/`: series stills, character cutouts and vehicle models.
 - `data/staff/`: Vira's staff. `roster.json` holds the hard facts (built by `tools/staff_roster.py`),
   and `cards/` holds the written character cards (spec in `docs/STAFF_CARDS.md`).
 - `docs/ROADMAP_PLATFORM_AND_MEMORY.md`: the plan for accounts and characters with memory.
+- `story/`: the series' story bible, canon notes, scripts, storyboards, character references and
+  scene stills, for building the game (start at `story/README.md`). It isn't served by the site.

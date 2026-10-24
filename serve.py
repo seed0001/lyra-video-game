@@ -18,6 +18,12 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                       '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json',
                       '.glb': 'model/gltf-binary', '.gltf': 'model/gltf+json', '.wasm': 'application/wasm'}
 
+    def send_head(self):
+        # story/ is reference material for building the game, not part of the site
+        if self.path.split('?')[0].startswith('/story'):
+            self.send_error(404); return None
+        return super().send_head()
+
     def end_headers(self):
         if ON_HOST and self.path.startswith('/assets/'):
             self.send_header('Cache-Control', 'public, max-age=3600')

@@ -1,0 +1,25 @@
+subject_definitions:
+<Subject 1> is the man in <Picture 1>: Marcus, 48, short salt-and-pepper hair, grey-flecked stubble beard, sun-weathered tan, lean build, black leather jacket over a grey henley, dark jeans, brown boots.
+<Subject 2> is the man in <Picture 2>: James, 48, completely bald head, CLEAN-SHAVEN with no beard and no stubble, broad heavyset build, US Army camouflage fatigues and tan combat boots.
+<Subject 3> is the woman in <Picture 3>, shown only as a semi-transparent glowing cyan hologram with faint scan lines: long wavy hair, fitted long-sleeve top and slim pants, standing on a circular metal projector platform.
+The pinned first frame of [Shot 1] shows <Subject 1> and <Subject 2> from behind walking across a large industrial vehicle bay toward a black and olive armored four-wheel rover with cyan sensor lights, <Subject 3> standing on her glowing platform on the left, the huge bay door open onto desert mountains at golden hour.
+
+summary:
+[first frame + reference generation] The target video is a single continuous live-action shot. It begins exactly from the pinned first frame: <Subject 1> and <Subject 2> walk side by side toward the rover while <Subject 3> watches from her platform on the left. As they walk, <Subject 1> asks a question and <Subject 2> answers with a grin.
+
+retention_analysis:
+<Subject 1> (appears in [Shot 1]): fully_preserved - face, salt-and-pepper hair, stubble and leather jacket exactly as in <Picture 1>.
+<Subject 2> (appears in [Shot 1]): fully_preserved - bald, clean-shaven face and camouflage fatigues exactly as in <Picture 2>; he has no beard at any point.
+<Subject 3> (appears in [Shot 1]): fully_preserved - face and hair exactly as in <Picture 3>, rendered as a cyan hologram.
+First frame ([Shot 1]): fully_preserved - the video starts exactly from the pinned first frame's framing, characters, rover and hangar.
+
+detailed_description:
+The target video is a photorealistic cinematic live-action shot, shot on ARRI Alexa with natural golden-hour light spilling through the open bay door and cool industrial overhead lights.
+
+[Shot 1] The shot begins from the pinned first frame. <Subject 1> and <Subject 2> walk side by side across the polished hangar floor toward the armored rover, seen from behind. The camera follows slowly behind them at walking pace. <Subject 1> turns his head toward <Subject 2> so his profile is visible and says: "You drove this thing across the desert? On public roads?" <Subject 2> turns his head toward <Subject 1>, showing his bald, clean-shaven face in profile with a broad grin, and says: "Mostly public." On the left, <Subject 3> stands still on her glowing projector platform, watching them with a faint smile, her hologram softly flickering. The rover's cyan sensor lights pulse gently.
+
+overall_soundscape:
+Large echoing hangar ambience, footsteps on concrete, a faint electronic hum from the hologram platform and the rover. <Subject 1>'s voice: low, warm, slightly gravelly male voice, dry humor. <Subject 2>'s voice: big, hearty male voice, a little gravelly, easy confidence of a career officer. Dialogue clearly audible.
+
+non_diegetic_music:
+None.

@@ -1,0 +1,25 @@
+subject_definitions:
+<Subject 1> is the woman in <Picture 1>, shown only as a semi-transparent glowing cyan hologram with faint scan lines: long wavy hair, fitted long-sleeve top and slim pants.
+<Subject 2> is the man in <Picture 2>: Marcus, 48, short salt-and-pepper hair, grey-flecked stubble beard, sun-weathered tan, lean build, black leather jacket over a grey henley, dark jeans.
+<Subject 3> is the man in <Picture 3>: James, 48, completely bald head, CLEAN-SHAVEN with no beard and no stubble, broad heavyset build, US Army camouflage fatigues.
+The pinned first frame of [Shot 1] shows <Subject 2> and <Subject 3> seen from behind on the left watching <Subject 1>, who gestures through a glowing schematic of the rover, in a large industrial vehicle bay at a desert data center, the huge bay door open onto desert mountains at golden hour, polished concrete floor, tool chests, cool industrial overhead lights.
+
+summary:
+[first frame + reference generation] A single continuous live-action shot that begins exactly from the pinned first frame and plays out the action and dialogue described in [Shot 1].
+
+retention_analysis:
+<Subject 1> (appears in [Shot 1]): fully_preserved - identity exactly as in <Picture 1>.
+<Subject 2> (appears in [Shot 1]): fully_preserved - identity exactly as in <Picture 2>.
+<Subject 3> (appears in [Shot 1]): fully_preserved - identity exactly as in <Picture 3>; bald and clean-shaven, no beard at any point.
+First frame ([Shot 1]): fully_preserved - the video starts exactly from the pinned first frame's framing, characters and set.
+
+detailed_description:
+The target video is a photorealistic cinematic live-action shot, shot on ARRI Alexa, golden-hour light through the open bay door.
+
+[Shot 1] The shot begins from the pinned first frame. <Subject 1> gestures through the glowing schematic and says: "Autonomous recon platform. Independent drive on all four wheels. And a decision engine that's been arguing with itself all morning." <Subject 3> turns his head toward her, showing his bald clean-shaven face in profile, and says: "...You got all that from the parking lot?"
+
+overall_soundscape:
+Large echoing hangar ambience, faint electronic hum from the rover and the hologram. Marcus's voice: low, warm, slightly gravelly male voice, dry humor. James's voice: big, hearty male voice, a little gravelly, easy confidence of a career officer. Lyra's voice: warm, bright female voice, mid-30s, American, playful and curious, with a faint airy digital resonance. Dialogue clearly audible.
+
+non_diegetic_music:
+None.

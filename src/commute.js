@@ -1,7 +1,7 @@
 // Vira's workforce: who works there, when, where they live, and the route they drive.
 // Everything is a pure function of the world clock, so scrubbing or fast-forwarding time
 // puts every car exactly where it would be.
-import { roadPolyline, HALCYON, IRONWOOD, IRON_GRID, FREEWAY_Z, ROAD_START } from './heightfield.js';
+import { roadPolyline, heightAt, HALCYON, IRONWOOD, IRON_GRID, FREEWAY_Z, ROAD_START } from './heightfield.js';
 import { HOMES, VIRA_STALLS } from './homes.js';
 import { rng } from './noise.js';
 import { freewayY, FREEWAY_X0, FREEWAY_X1 } from './city.js';
@@ -49,8 +49,8 @@ function tzOffset(t) {
   return off;
 }
 export const dayIndex = (t) => Math.floor((t + tzOffset(t)) / DAY);
-const dayStart = (d) => d * DAY - tzOffset(d * DAY + 12 * HOUR);
-const dayOfWeek = (d) => (d + 4) % 7; // 0 = Sunday (day 0 of the epoch was a Thursday)
+export const dayStart = (d) => d * DAY - tzOffset(d * DAY + 12 * HOUR);
+export const dayOfWeek = (d) => (d + 4) % 7; // 0 = Sunday (day 0 of the epoch was a Thursday)
 
 const PITMAN = [1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0];
 const CREWS = ['A', 'B', 'C', 'D'];
@@ -155,7 +155,7 @@ class Route {
     const tl = Math.hypot(tx, tz) || 1; tx /= tl; tz /= tl;
     const x = a[0] + (b[0] - a[0]) * f, z = a[1] + (b[1] - a[1]) * f;
     out.x = x - tz * L.lane; out.z = z + tx * L.lane;
-    out.y = typeof L.y === 'function' ? L.y(x) : L.y;
+    out.y = typeof L.y === 'function' ? L.y(x, z) : L.y;
     out.hx = tx; out.hz = tz;
     out.speed = s < L.len ? L.speed : 0;
     return out;
@@ -167,13 +167,19 @@ const saltIndexAtZ = (z) => Math.round((z - ROAD_START) / 8);
 
 // Home driveway -> streets -> highway -> Vira's gate -> a parking stall.
 function routeToWork(home, stall) {
-  const salt = sharedLine('saltbrush');
   const [dx, dz] = home.drive, zs = home.street;
   const legs = [own([[dx, dz], [dx, zs]], 3, 0, home.city === 'saltbrush' ? 0.3 : 0.08)];
-  if (home.city === 'saltbrush') {
+  return new Route([...legs, ...cityLegs(home.city, dx, zs), ...lotLegs(stall)]);
+}
+
+// From a point on a town street out to the highway and on to the end of the Saltbrush road at Vira.
+function cityLegs(city, dx, zs) {
+  const salt = sharedLine('saltbrush');
+  const legs = [];
+  if (city === 'saltbrush') {
     legs.push(own([[dx, zs], [0, zs]], 11, 2, 0.3));
     legs.push(leg(salt, saltIndexAtZ(zs), salt.pts.length - 1, 29, 1.8, 0.27));
-  } else if (home.city === 'halcyon') {
+  } else if (city === 'halcyon') {
     const hal = sharedLine('halcyon');
     legs.push(own([[dx, zs], [FREEWAY_X1, zs]], 12, 2.5, 0.08));
     legs.push(own([[FREEWAY_X1, zs], [FREEWAY_X1, FREEWAY_Z]], 12, 2.5, 0.08));
@@ -192,11 +198,32 @@ function routeToWork(home, stall) {
     legs.push(leg(irn, irn.pts.length - 1, 0, 27, 1.8, 0.27));
     legs.push(leg(salt, saltIndexAtZ(irn.pts[0][1]), salt.pts.length - 1, 29, 1.8, 0.27));
   }
-  // through Lyra's gate and into the lot
+  return legs;
+}
+
+// through Lyra's gate and into the lot
+function lotLegs(stall) {
+  const salt = sharedLine('saltbrush');
   const end = salt.pts[salt.pts.length - 1];
-  legs.push(own([[end[0], end[1]], [31, -662], [31, stall.aisle], [stall.x, stall.aisle]], 6, 1.5, 0.12));
-  legs.push(own([[stall.x, stall.aisle], [stall.x, stall.z]], 2.5, 0, 0.12));
-  return new Route(legs);
+  return [
+    own([[end[0], end[1]], [31, -662], [31, stall.aisle], [stall.x, stall.aisle]], 6, 1.5, 0.12),
+    own([[stall.x, stall.aisle], [stall.x, stall.z]], 2.5, 0, 0.12),
+  ];
+}
+
+// The cast's drives to work (cast.js). A house on a town street drives like the staff's; the two
+// hillside places (Nova's above Halcyon, Juno's outside Ironwood) come down their own road first.
+export function castRoute(home, stall) {
+  if (!home.road) return routeToWork(home, stall);
+  const line = sharedLine(home.road), n = line.pts.length - 1;
+  const ground = (x, z) => heightAt(x, z) + 0.1;
+  const [x0, z0] = line.pts[0];
+  return new Route([
+    own([home.drive, line.pts[n]], 3, 0, ground),
+    leg(line, n, 0, 11, 2, ground),
+    ...cityLegs(home.city, x0, z0),
+    ...lotLegs(stall),
+  ]);
 }
 
 // ---------- the staff roster ----------

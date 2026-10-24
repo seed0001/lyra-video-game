@@ -1,0 +1,21 @@
+subject_definitions:
+<Subject 1> is the woman in <Picture 1>, shown only as a semi-transparent glowing cyan hologram with faint scan lines: long wavy hair, fitted long-sleeve top and slim pants.
+The pinned first frame of [Shot 1] shows the rover's cabin interior with a large main display showing <Subject 1> as a glowing cyan figure beside a wireframe of the rover, in a large industrial vehicle bay at a desert data center, the huge bay door open onto desert mountains at golden hour, polished concrete floor, tool chests, cool industrial overhead lights.
+
+summary:
+[first frame + reference generation] A single continuous live-action shot that begins exactly from the pinned first frame and plays out the action and dialogue described in [Shot 1].
+
+retention_analysis:
+<Subject 1> (appears in [Shot 1]): fully_preserved - identity exactly as in <Picture 1>.
+First frame ([Shot 1]): fully_preserved - the video starts exactly from the pinned first frame's framing, characters and set.
+
+detailed_description:
+The target video is a photorealistic cinematic live-action shot, shot on ARRI Alexa, golden-hour light through the open bay door.
+
+[Shot 1] The shot begins from the pinned first frame. The cabin screens flicker awake one by one; <Subject 1> on the main display looks out warmly and says gently: "It isn't broken, Marcus. Nobody ever let it want anything." The instrument lights glow cyan. Slow push-in.
+
+overall_soundscape:
+Large echoing hangar ambience, faint electronic hum from the rover and the hologram. Marcus's voice: low, warm, slightly gravelly male voice, dry humor. James's voice: big, hearty male voice, a little gravelly, easy confidence of a career officer. Lyra's voice: warm, bright female voice, mid-30s, American, playful and curious, with a faint airy digital resonance. Dialogue clearly audible.
+
+non_diegetic_music:
+None.

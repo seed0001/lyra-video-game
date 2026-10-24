@@ -50,13 +50,13 @@ function rugTex() {
 }
 
 // A chopper after the one in ji1: fat rear tyre, raked fork, black tank, chrome V-twin.
-function bikeGeo() {
+export function bikeGeo() {
   const chrome = '#c9ced3', black = '#141414';
   return mergeParts([
-    part(new THREE.TorusGeometry(0.34, 0.1, 10, 28), black, -0.82, 0.44, 0, 0, Math.PI / 2, 0),
-    part(new THREE.TorusGeometry(0.33, 0.07, 10, 28), black, 0.92, 0.4, 0, 0, Math.PI / 2, 0),
-    part(new THREE.CylinderGeometry(0.24, 0.24, 0.08, 18), chrome, -0.82, 0.44, 0, 0, 0, Math.PI / 2),
-    part(new THREE.CylinderGeometry(0.24, 0.24, 0.05, 18), chrome, 0.92, 0.4, 0, 0, 0, Math.PI / 2),
+    part(new THREE.TorusGeometry(0.34, 0.1, 10, 28), black, -0.82, 0.44, 0),
+    part(new THREE.TorusGeometry(0.33, 0.07, 10, 28), black, 0.92, 0.4, 0),
+    part(new THREE.CylinderGeometry(0.24, 0.24, 0.08, 18), chrome, -0.82, 0.44, 0, Math.PI / 2, 0, 0),
+    part(new THREE.CylinderGeometry(0.24, 0.24, 0.05, 18), chrome, 0.92, 0.4, 0, Math.PI / 2, 0, 0),
     part(new THREE.CylinderGeometry(0.025, 0.025, 1.0, 8), chrome, 0.72, 0.82, 0.08, 0, 0, 0.5),
     part(new THREE.CylinderGeometry(0.025, 0.025, 1.0, 8), chrome, 0.72, 0.82, -0.08, 0, 0, 0.5),
     part(new THREE.CylinderGeometry(0.03, 0.03, 1.3, 8), black, -0.05, 0.62, 0, 0, 0, Math.PI / 2 + 0.15),

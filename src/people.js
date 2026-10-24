@@ -13,8 +13,8 @@ import { localClock } from './sun.js';
 // function of the person and the shift, so scrubbing the clock puts everyone where they'd be.
 const MIN = 60000, WALK = 1.35;
 const LANES_X = [31, 114, 198, 282, 368];                 // west road, three alleys, east lane
-const LINES_Z = [-556, -257, -1, 255, 520];               // lot edge, cross roads, south end
-const OPS_DOOR = [436, -381], OPS_STEP = [436, -372];     // front door of the operations building
+export const LINES_Z = [-556, -257, -1, 255, 520];               // lot edge, cross roads, south end
+export const OPS_DOOR = [436, -381], OPS_STEP = [436, -372];     // front door of the operations building
 const FENCE = { x0: 16, x1: 646, z0: GATE_Z + 4, z1: 544 };
 const BOOTH = [41.6, GATE_Z + 16], ARM = [37.5, GATE_Z + 22];
 // contractors' work zones in the solar field, where a cross gap meets the panel rows; work
@@ -32,7 +32,7 @@ const OUT = -1, HIDE = -2;
 
 // ---------- routing ----------
 // Outdoors: along the lanes and cross roads (manhattan, never through a building).
-function outdoor(a, b) {
+export function outdoor(a, b) {
   // in the solar field: out along a row gap to the cross gap and back up the other
   const zone = ZONES.find((z) => Math.abs(b[0] - z[0]) < 40 && Math.abs(b[1] - z[1]) < 40);
   if (zone && Math.abs(a[0] - zone[0]) < 40 && Math.abs(a[1] - zone[1]) < 40) return [a, [a[0], zone[1]], [b[0], zone[1]], b];
@@ -347,6 +347,7 @@ export function buildPeople() {
   const group = new THREE.Group();
   const mat = new THREE.MeshStandardMaterial({ roughness: 0.8, metalness: 0 });
   let staff = [];
+  let extras = () => [];   // the cast (cast.js): drawn with the same bodies, in their own clothes
   const N = 300;
   const torsoGeo = new THREE.BoxGeometry(0.38, 0.56, 0.22); torsoGeo.translate(0, 0.28, 0);
   const pelvisGeo = new THREE.BoxGeometry(0.34, 0.16, 0.21); pelvisGeo.translate(0, 0.02, 0);
@@ -557,6 +558,11 @@ export function buildPeople() {
       e.wy = y;
       draw(e, w, y);
     }
+    for (const x of extras(cam)) {
+      w.seed = x.look.seed;
+      Object.assign(w, x.w);
+      draw(x, w, x.y);
+    }
     for (const k in meshes) {
       const im = meshes[k];
       im.count = slots[k];
@@ -623,6 +629,7 @@ export function buildPeople() {
       }
     },
     update, followNearest, chase, describe,
+    setExtras(fn) { extras = fn; },
     get following() { return following; },
     unfollow() { following = null; },
     // for tests: the plan an employee is working through right now

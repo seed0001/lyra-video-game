@@ -9,8 +9,8 @@ import { loadVehicle } from './models.js';
 import { placeCharacter } from './characters.js';
 import { buildTraffic } from './traffic.js';
 import { buildPeople } from './people.js';
+import { buildCast, tagFixed } from './cast.js';
 import { buildHallInterior, hallCenter, hallName, HL } from './hallInterior.js';
-import { buildNovaCar } from './props.js';
 import { buildRoad, roadPath } from './road.js';
 import { buildDataCenter } from './datacenter.js';
 import { buildTown } from './town.js';
@@ -106,20 +106,16 @@ async function park(parent, name, spot, fallback) {
   parent.add(v);
   return v;
 }
-await step('Parking the cars…', () => Promise.all([
-  park(novaHome, 'nova_car', novaHome.userData.spots.nova_car, buildNovaCar),
-  park(junoHome, 'juno_trike', junoHome.userData.spots.juno_trike),
-  park(scene, 'james_rover', { x: 92, y: 0.12, z: -545, ry: Math.PI / 2 }),
-]));
-// Cast: full-body figures from the series character sheets, posed in their rooms.
+// Nova's car, Juno's trike and Marcus's bike move with their owners (cast.js); the rover stays in Bay Three.
+await step('Parking the rover…', () => park(scene, 'james_rover', { x: 92, y: 0.12, z: -545, ry: Math.PI / 2 }));
+// Lyra on her platform and Patch in the ops room, from the series character sheets. The rest of
+// the cast lives on their schedules (cast.js).
 await step('Casting the crew…', () => Promise.all([
   placeCharacter(dc.ops, 'lyra', dc.ops.userData.cast.lyra),
-  placeCharacter(dc.ops, 'marcus', dc.ops.userData.cast.marcus),
   placeCharacter(dc.ops, 'patch', dc.ops.userData.cast.patch),
-  placeCharacter(junoHome, 'juno', junoHome.userData.cast.juno),
-  placeCharacter(novaHome, 'nova', novaHome.userData.cast.nova),
-  placeCharacter(scene, 'james', { x: 86, y: 0.12, z: -548, ry: Math.PI * 0.15 }),
 ]));
+tagFixed(dc.ops, dc.ops.userData.cast.lyra, 'Lyra', '#36e0ff', 1.95);
+tagFixed(dc.ops, dc.ops.userData.cast.patch, 'Patch', '#f2f2f0', 0.8);
 await step('Growing the desert…', () => scene.add(buildScatter()));
 const brush = new LocalScatter();
 scene.add(brush.group);
@@ -132,6 +128,9 @@ scene.add(halls.group);
 const people = await step('Clocking everyone in…', () => buildPeople());
 people.setStaff(traffic.staff);
 scene.add(people.group);
+const cast = await step('Sending the cast to work…', () => buildCast({ novaHome, junoHome, ops: dc.ops, staff: traffic.staff }));
+people.setExtras(cast.extras);
+scene.add(cast.group);
 initInteriorLights(scene);
 await step('Lighting…', () => pipe.setupMaterials(scene));
 
@@ -263,6 +262,9 @@ controls.onKey = (code) => {
   if (code === 'KeyV') traffic.followNext();
   if (code === 'KeyB') traffic.followNearest(camera.position);
   if (code === 'KeyV' || code === 'KeyB') people.unfollow();
+  // follow the cast: R cycles through them
+  if (code === 'KeyR') { traffic.unfollow(); people.unfollow(); cast.followNext(); }
+  if (code === 'KeyV' || code === 'KeyB' || code === 'KeyE') cast.unfollow();
   // follow a worker on foot: E grabs the nearest one in sight
   if (code === 'KeyE') { traffic.unfollow(); people.followNearest(camera.position); }
   // U walks into the next data hall
@@ -273,7 +275,7 @@ controls.onKey = (code) => {
     controls.mode = 'walk';
   }
   const leave = /^Key[WASDIOMPJKNU]$|^Digit|^Minus$|^Equal$|^Backquote$|^Escape$/.test(code);
-  if (leave) { traffic.unfollow(); if (code !== 'KeyE') people.unfollow(); }
+  if (leave) { traffic.unfollow(); cast.unfollow(); if (code !== 'KeyE') people.unfollow(); }
   if (viewpoints[code]) {
     controls.place(...viewpoints[code]);
     controls.mode = WALK_VIEWS.includes(code) ? 'walk' : 'fly';
@@ -324,6 +326,11 @@ function drawMinimap() {
   label(NOVA_PAD.x, NOVA_PAD.z, 'NOVA', '#d8b4ff');
   label(IRONWOOD.x, IRONWOOD.z, 'IRONWOOD', '#ffcf86');
   label(JUNO_PAD.x, JUNO_PAD.z, 'JUNO', '#d8b4ff');
+  for (const m of cast.members) {
+    if (!m.state || m.state.mode === 'away') continue;
+    const [cx, cy] = toMap(m.pos.x, m.pos.z);
+    mctx.fillStyle = m.tag; mctx.beginPath(); mctx.arc(cx, cy, 3, 0, Math.PI * 2); mctx.fill();
+  }
   const [px, py] = toMap(camera.position.x, camera.position.z);
   mctx.save(); mctx.translate(px, py); mctx.rotate(-controls.yaw);
   mctx.fillStyle = '#fff'; mctx.beginPath(); mctx.moveTo(0, -7); mctx.lineTo(5, 6); mctx.lineTo(-5, 6); mctx.fill();
@@ -359,16 +366,17 @@ function updateHud(dt) {
     `${clockText()}<br>` +
     `sun ${sunElev.toFixed(1)}° &nbsp;gate ${dc.gate.open || dc.gate.auto ? 'OPEN' : 'closed'}<br>` +
     `Vira staff: ${traffic.counts.onSite} on site &middot; ${traffic.counts.commuting} driving<br>` +
-    `&nbsp;&nbsp;${people.counts.working} working outside or in the halls &middot; ${people.counts.walking} walking &middot; ${people.counts.inside} in the ops building`;
-  followPanel.innerHTML = traffic.following ? traffic.describe(simMs) : people.describe(simMs);
-  followPanel.classList.toggle('hidden', !traffic.following && !people.following);
+    `&nbsp;&nbsp;${people.counts.working} working outside or in the halls &middot; ${people.counts.walking} walking &middot; ${people.counts.inside} in the ops building<br>` +
+    `<b>CAST</b> <span style="opacity:.6">(R to follow)</span><br>${cast.brief().join('<br>')}`;
+  followPanel.innerHTML = cast.following ? cast.describe(simMs) : traffic.following ? traffic.describe(simMs) : people.describe(simMs);
+  followPanel.classList.toggle('hidden', !traffic.following && !people.following && !cast.following);
   drawMinimap();
 }
 
 // ---------- loop ----------
 document.getElementById('loading').remove();
 window.world = {
-  scene, renderer, camera, controls, pipe, traffic, people, halls, indoorFill,
+  scene, renderer, camera, controls, pipe, traffic, people, cast, halls, indoorFill,
   // jump the world clock to a Death Valley local hour today (for testing)
   setHour: (h) => {
     const parts = new Intl.DateTimeFormat('en-US', { timeZone: DEATH_VALLEY.tz, hour: 'numeric', minute: 'numeric', hourCycle: 'h23' }).formatToParts(new Date(simMs));
@@ -393,10 +401,11 @@ renderer.setAnimationLoop(() => {
   skyT += dt;
   if (skyT > (timeRate > 1 || k.has('BracketRight') || k.has('BracketLeft') ? 0 : 1)) { skyT = 0; syncSky(); }
 
-  dc.gate.auto = traffic.update(simMs, dt * timeRate);
+  const castAtGate = cast.update(simMs, dt * timeRate);
+  dc.gate.auto = traffic.update(simMs, dt * timeRate) || castAtGate;
   halls.update(camera.position);
   people.update(simMs, camera.position, halls.current);
-  if (traffic.following || (people.following && people.chase(camera, dt))) {
+  if (traffic.following || (people.following && people.chase(camera, dt)) || (cast.following && cast.chase(camera, dt))) {
     if (traffic.following) traffic.chase(camera, dt);
     // keep the free camera pointed the same way, so leaving follow mode doesn't jump
     const dir = camera.getWorldDirection(new THREE.Vector3());
