@@ -10,6 +10,7 @@ import { placeCharacter } from './characters.js';
 import { buildTraffic } from './traffic.js';
 import { buildPeople } from './people.js';
 import { buildCast, tagFixed } from './cast.js';
+import { buildPatch } from './patch.js';
 import { buildHallInterior, hallCenter, hallName, HL } from './hallInterior.js';
 import { buildRoad, roadPath } from './road.js';
 import { buildDataCenter } from './datacenter.js';
@@ -108,14 +109,13 @@ async function park(parent, name, spot, fallback) {
 }
 // Nova's car, Juno's trike and Marcus's bike move with their owners (cast.js); the rover stays in Bay Three.
 await step('Parking the rover…', () => park(scene, 'james_rover', { x: 92, y: 0.12, z: -545, ry: Math.PI / 2 }));
-// Lyra on her platform and Patch in the ops room, from the series character sheets. The rest of
-// the cast lives on their schedules (cast.js).
-await step('Casting the crew…', () => Promise.all([
+// Lyra on her platform (from the series character sheet) and Patch padding around the ops room.
+// The rest of the cast lives on their schedules (cast.js).
+const [, patch] = await step('Casting the crew…', () => Promise.all([
   placeCharacter(dc.ops, 'lyra', dc.ops.userData.cast.lyra),
-  placeCharacter(dc.ops, 'patch', dc.ops.userData.cast.patch),
+  buildPatch(dc.ops, dc.ops.userData.cast.patch.y).catch((e) => { console.warn('Patch failed to load', e); return null; }),
 ]));
 tagFixed(dc.ops, dc.ops.userData.cast.lyra, 'Lyra', '#36e0ff', 1.95);
-tagFixed(dc.ops, dc.ops.userData.cast.patch, 'Patch', '#f2f2f0', 0.8);
 await step('Growing the desert…', () => scene.add(buildScatter()));
 const brush = new LocalScatter();
 scene.add(brush.group);
@@ -376,7 +376,7 @@ function updateHud(dt) {
 // ---------- loop ----------
 document.getElementById('loading').remove();
 window.world = {
-  scene, renderer, camera, controls, pipe, traffic, people, cast, halls, indoorFill,
+  scene, renderer, camera, controls, pipe, traffic, people, cast, patch, halls, indoorFill,
   // jump the world clock to a Death Valley local hour today (for testing)
   setHour: (h) => {
     const parts = new Intl.DateTimeFormat('en-US', { timeZone: DEATH_VALLEY.tz, hour: 'numeric', minute: 'numeric', hourCycle: 'h23' }).formatToParts(new Date(simMs));
@@ -430,6 +430,7 @@ renderer.setAnimationLoop(() => {
   pipe.csm.update();
   brush.update(p);
   dc.update(dt, elapsed);
+  if (patch) patch.update(simMs);
   updateInteriors(p, dt, elapsed);
   updateHud(dt);
   pipe.composer.render(dt);

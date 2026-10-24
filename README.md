@@ -47,7 +47,8 @@ There are no environment variables to set. On Railway, files under `assets/` are
   drives down from the hills above Halcyon, Juno brings the trike over from Ironwood, and James and
   Solo spend their days at Vira. Until they have avatars they're drawn like the staff, in their own
   clothes, with name tags.
-- `assets/`: series stills, character cutouts and vehicle models.
+- `assets/`: series stills, character cutouts and vehicle models. Patch is `assets/characters/chance.fbx`, the dog
+  model from travisbollenbach.com; he walks laps of the ops room (`src/patch.js`).
 - `data/staff/`: Vira's staff. `roster.json` holds the hard facts (built by `tools/staff_roster.py`),
   and `cards/` holds the written character cards (spec in `docs/STAFF_CARDS.md`).
 - `docs/ROADMAP_PLATFORM_AND_MEMORY.md`: the plan for accounts and characters with memory.
