@@ -157,6 +157,7 @@ class Route {
     out.x = x - tz * L.lane; out.z = z + tx * L.lane;
     out.y = typeof L.y === 'function' ? L.y(x, z) : L.y;
     out.hx = tx; out.hz = tz;
+    if (L.rev) { out.hx = -tx; out.hz = -tz; } // backing up: facing the other way
     out.speed = s < L.len ? L.speed : 0;
     return out;
   }
@@ -209,6 +210,34 @@ function lotLegs(stall) {
     own([[end[0], end[1]], [31, -662], [31, stall.aisle], [stall.x, stall.aisle]], 6, 1.5, 0.12),
     own([[stall.x, stall.aisle], [stall.x, stall.z]], 2.5, 0, 0.12),
   ];
+}
+
+// A semi's run to a delivery bay at Vira and back (trucks.js), from a point on a town street.
+// Dock bays: along the north drive (between the docked semis' noses and the parked box trucks,
+// clear of the rover in Bay Three), swing the nose north, then back down to the hall's doors.
+// Side bays: down the west road and along the cross road to the bay; out the far end of it.
+const TRUCK_SPEED = 0.85;
+const slow = (legs) => legs.map((L) => ({ ...L, speed: L.speed * TRUCK_SPEED }));
+export function truckRoutes(city, [dx, zs], bay) {
+  const salt = sharedLine('saltbrush');
+  const end = salt.pts[salt.pts.length - 1];
+  const highway = slow(cityLegs(city, dx, zs));
+  const site = (pts, speed = 5) => own(pts, speed, 0, 0.12);
+  let inbound, outbound;
+  if (bay.dock) {
+    const { x } = bay, DRIVE = -529.5;
+    inbound = [site([end, [31, -662], [31, DRIVE], [x - 16, DRIVE], [x - 6, DRIVE - 3], [x, -556]]),
+      { ...site([[x, -556], [x, bay.z]], 1.6), rev: true }];
+    outbound = [site([[x, bay.z], [x, DRIVE + 6], [x - 8, DRIVE], [31, DRIVE], [31, -662], end])];
+  } else {
+    const { x, z } = bay, lane = x < 140 ? 114 : 282, DRIVE = -529.5;
+    inbound = [site([end, [31, -662], [31, z], [x - 4, z]]), site([[x - 4, z], [x, z]], 1.5)];
+    outbound = [site([[x, z], [lane, z], [lane, DRIVE], [31, DRIVE], [31, -662], end])];
+  }
+  return {
+    inbound: new Route([...highway, ...inbound]),
+    outbound: new Route([...outbound, ...new Route(highway).reversed().legs]),
+  };
 }
 
 // The cast's drives to work (cast.js). A house on a town street drives like the staff's; the two

@@ -38,6 +38,7 @@ There are no environment variables to set. On Railway, files under `assets/` are
 | V / B | follow a commuter's car / the nearest car |
 | E | follow the nearest worker on foot |
 | R | follow the cast (Marcus, Nova, Juno, James, Solo) |
+| Y | follow a semi on its delivery run |
 | G, Q, H | Vira's gate, render quality, hide help |
 
 ## What's where

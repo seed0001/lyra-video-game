@@ -4,7 +4,7 @@ import { rng, canvasTex, signTex, boxUV, part, mergeParts, mat4, instanced, flat
 import * as TX from './textures.js';
 import * as DX from './dctextures.js';
 import { buildCars, buildTrucks, buildLightPoles, contactShadows } from './props.js';
-import { VIRA_STALLS } from './homes.js';
+import { VIRA_STALLS, TRUCK_BAYS } from './homes.js';
 import { buildViraInterior } from './interiorVira.js';
 
 // Vira, laid out after the film's aerial stills: sixteen data halls in four blocks of four.
@@ -283,10 +283,12 @@ function buildFront(g, M, r) {
   }
   g.add(flatRect(330, 70, 221, -599, 0.115, M.asphalt, 10));
   g.add(instanced(new THREE.BoxGeometry(0.12, 0.02, 5.2), new THREE.MeshBasicMaterial({ color: '#d9d9d2' }), stripes, { cast: false }));
-  // trucks at the loading ends of the first block and along the north drive
-  for (let i = 0; i < 6; i++) trucks.push({ x: HALL_X[i % 4] + (i < 4 ? -12 : 12), z: -512, ry: Math.PI, kind: i % 3 ? 'semi' : 'box' });
+  // trucks at the loading ends of the first block and along the north drive. The box trucks are
+  // Vira's own and stay parked; the bays the semis use are delivery bays (trucks.js drives them).
+  const truckAt = (t, dock) => (t.kind === 'semi' ? TRUCK_BAYS.push({ x: t.x, z: t.z, ry: t.ry, dock }) : trucks.push(t));
+  for (let i = 0; i < 6; i++) truckAt({ x: HALL_X[i % 4] + (i < 4 ? -12 : 12), z: -512, ry: Math.PI, kind: i % 3 ? 'semi' : 'box' }, true);
   for (const x of [120, 200, 280]) trucks.push({ x, z: -536, ry: Math.PI / 2, kind: 'box' });
-  for (const hz of HALL_Z.slice(1)) for (const hx of [HALL_X[0], HALL_X[2]]) trucks.push({ x: hx - 14, z: hz - HALL.L / 2 - 8, ry: Math.PI / 2, kind: r() < 0.5 ? 'box' : 'semi' });
+  for (const hz of HALL_Z.slice(1)) for (const hx of [HALL_X[0], HALL_X[2]]) truckAt({ x: hx - 14, z: hz - HALL.L / 2 - 8, ry: Math.PI / 2, kind: r() < 0.5 ? 'box' : 'semi' }, false);
   for (let k = 0; k < 14; k++) {
     const hz = HALL_Z[k % 4], i = k % 3;
     cars.push({ x: (HALL_X[i] + HALL_X[i + 1]) / 2 + 2, z: hz + (r() - 0.5) * 180, ry: r() < 0.5 ? 0 : Math.PI, color: '#f2f2f0', kind: r() < 0.6 ? 'pickup' : 'van' });

@@ -138,7 +138,7 @@ export function buildNovaCar() {
 
 // Semi trucks (tractor + 53' trailer) and box trucks. list: [{x, z, ry, kind: 'semi'|'box', color?}]
 let truckGeo = null;
-function buildTruckGeo() {
+export function buildTruckGeo() {
   if (truckGeo) return truckGeo;
   const wheels = (axles, w, r) => {
     const parts = [];

@@ -7,3 +7,7 @@ export const HOMES = { saltbrush: [], halcyon: [], ironwood: [] };
 
 // Staff parking at Vira: { x, z (stall center), aisle (z of the aisle it opens onto) }.
 export const VIRA_STALLS = [];
+
+// Where semis deliver at Vira (trucks.js): { x, z, ry, dock } — dock bays back up to a hall's end
+// doors (facing north); side bays pull in alongside a hall on a cross road (facing east).
+export const TRUCK_BAYS = [];
