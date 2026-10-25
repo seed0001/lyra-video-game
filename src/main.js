@@ -13,6 +13,7 @@ import { buildCast, tagFixed } from './cast.js';
 import { buildPatch } from './patch.js';
 import { buildDeliveries } from './trucks.js';
 import { buildStations } from './stations.js';
+import { buildWeather } from './weather.js';
 import { buildHallInterior, hallCenter, hallName, HL } from './hallInterior.js';
 import { buildRoad, roadPath } from './road.js';
 import { buildDataCenter } from './datacenter.js';
@@ -48,6 +49,14 @@ scene.add(hemi);
 const pipe = createPipeline(renderer, scene, camera);
 const clouds = buildClouds();
 scene.add(clouds);
+// weather (weather.js): rain, lightning, blowing dust and dust devils, plus a dome that greys or browns
+// the sky under storms and dust (drawn after the stars, before the clouds)
+const weather = buildWeather(camera);
+scene.add(weather.group);
+const weatherDome = new THREE.Mesh(new THREE.SphereGeometry(140000, 32, 16), new THREE.MeshBasicMaterial({ color: '#777', side: THREE.BackSide, transparent: true, opacity: 0, fog: false, depthWrite: false }));
+weatherDome.frustumCulled = false;
+weatherDome.renderOrder = 0;
+scene.add(weatherDome);
 
 // Star field for night skies.
 const stars = (() => {
@@ -209,6 +218,9 @@ function updateSun() {
   cu.hazeColor.value.copy(scene.fog.color);
   setNight(night);
   dc.setDaylight(day);
+  // what the weather starts from each frame (applyWeather)
+  Object.assign(skyBase, { light: lightIntensity, hemi: hemi.intensity, exposure: renderer.toneMappingExposure, env: scene.environmentIntensity });
+  skyBase.fog.copy(scene.fog.color); skyBase.sunC.copy(cu.sunColor.value); skyBase.amb.copy(cu.ambient.value);
 
   if (lastEnvElev === null || Math.abs(sunElev - lastEnvElev) > 2) {
     lastEnvElev = sunElev;
@@ -217,6 +229,28 @@ function updateSun() {
     scene.environment = envRT.texture;
   }
 }
+// ---------- weather over the sky and light ----------
+const skyBase = { light: 3, hemi: 0.5, exposure: 0.7, env: 0.8, fog: new THREE.Color(), sunC: new THREE.Color(), amb: new THREE.Color() };
+const STORM_GREY = new THREE.Color('#5d636b'), DUST_BROWN = new THREE.Color('#a8824f'), FLASH = new THREE.Color('#dfe6ff');
+const wc = new THREE.Color();
+function applyWeather(w) {
+  const oc = w.overcast, dust = w.dust, fl = w.flash;
+  const lum = (skyBase.fog.r + skyBase.fog.g + skyBase.fog.b) / 3 / 0.75;   // how bright the sky is right now
+  for (const l of pipe.csm.lights) l.intensity = skyBase.light * (1 - 0.78 * oc) * (1 - 0.55 * dust);
+  hemi.intensity = skyBase.hemi * (1 - 0.25 * oc) + fl * 1.8;
+  renderer.toneMappingExposure = skyBase.exposure * (1 - 0.2 * oc) + fl * 0.5;
+  scene.environmentIntensity = skyBase.env * (1 - 0.5 * oc);
+  scene.fog.color.copy(skyBase.fog).lerp(wc.copy(STORM_GREY).multiplyScalar(Math.min(1.2, lum)), oc * 0.75).lerp(wc.copy(DUST_BROWN).multiplyScalar(Math.min(1.2, lum)), dust);
+  scene.fog.density = 0.000034 * (1 + oc * 3 + w.rain * 9 + dust * 190);
+  const cu = clouds.material.uniforms;
+  cloudUniforms.cloudCover.value = 0.56 - 0.42 * oc + 0.44 * dust; // dust hides the clouds
+  cu.sunColor.value.copy(skyBase.sunC).multiplyScalar(1 - 0.72 * oc).lerp(FLASH, fl * 0.8);
+  cu.ambient.value.copy(skyBase.amb).multiplyScalar(1 - 0.45 * oc).lerp(FLASH, fl * 0.5);
+  weatherDome.material.color.copy(scene.fog.color).lerp(FLASH, fl * 0.35);
+  weatherDome.material.opacity = Math.min(1, oc * 0.7 + dust);
+  weatherDome.visible = weatherDome.material.opacity > 0.005;
+}
+
 // the moon itself, a small disc far out in the sky
 const moonDir = new THREE.Vector3(0, -1, 0);
 const moonMesh = new THREE.Mesh(new THREE.CircleGeometry(900, 32), new THREE.MeshBasicMaterial({ color: '#f4f1e4', transparent: true, fog: false, depthWrite: false }));
@@ -296,6 +330,8 @@ controls.onKey = (code) => {
   if (code === 'KeyT') timeRate = timeRate === 1 ? 120 : 1;
   if (code === 'KeyL') { simMs = Date.now(); timeRate = 1; syncSky(); }
   if (code === 'KeyH') document.getElementById('help').classList.toggle('hidden');
+  // weather by hand: Z cycles auto, clear, cloudy, rain, thunderstorm, dust storm
+  if (code === 'KeyZ') weather.cycle();
   if (code === 'KeyQ') {
     // quality: toggle render resolution
     const pr = renderer.getPixelRatio() > 1.01 ? 1 : Math.min(devicePixelRatio, 1.5);
@@ -376,6 +412,7 @@ function updateHud(dt) {
     `Ironwood ${(Math.hypot(p.x - IRONWOOD.x, p.z - IRONWOOD.z) / MILE).toFixed(1)} mi<br>` +
     `${DEATH_VALLEY.name}, Death Valley<br>` +
     `${clockText()}<br>` +
+    `weather ${weather.describe(simMs)}<br>` +
     `sun ${sunElev.toFixed(1)}° &nbsp;gate ${dc.gate.open || dc.gate.auto ? 'OPEN' : 'closed'}<br>` +
     `Vira staff: ${traffic.counts.onSite} on site &middot; ${traffic.counts.commuting} driving<br>` +
     `&nbsp;&nbsp;${people.counts.working} working outside or in the halls &middot; ${people.counts.walking} walking &middot; ${people.counts.inside} in the ops building<br>` +
@@ -390,7 +427,7 @@ function updateHud(dt) {
 // ---------- loop ----------
 document.getElementById('loading').remove();
 window.world = {
-  scene, renderer, camera, controls, pipe, traffic, people, cast, patch, deliveries, responders, halls, indoorFill,
+  scene, renderer, camera, controls, pipe, traffic, people, cast, patch, deliveries, responders, weather, halls, indoorFill,
   // jump the world clock to a Death Valley local hour today (for testing)
   setHour: (h) => {
     const parts = new Intl.DateTimeFormat('en-US', { timeZone: DEATH_VALLEY.tz, hour: 'numeric', minute: 'numeric', hourCycle: 'h23' }).formatToParts(new Date(simMs));
@@ -432,6 +469,10 @@ renderer.setAnimationLoop(() => {
   p.x = THREE.MathUtils.clamp(p.x, BOUNDS.X0 + 12000, BOUNDS.X1 - 12000);
   p.z = THREE.MathUtils.clamp(p.z, BOUNDS.Z0 + 12000, BOUNDS.Z1 - 12000);
   terrain.update(p);
+  // weather: what's in the air, then the sky and light under it (none of it reaches indoors)
+  applyWeather(weather.update(simMs, dt));
+  weather.group.visible = !roomAt(p.x, p.z, p.y - 1.7);
+  weatherDome.position.copy(p);
   // cities draw only within range; past that they are lost in the haze anyway
   for (const [obj, x, z, range] of farCull) obj.visible = Math.hypot(p.x - x, p.z - z) < range;
   sky.position.copy(p);

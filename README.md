@@ -32,6 +32,7 @@ There are no environment variables to set. On Railway, files under `assets/` are
 | WASD, Space/C, Shift, wheel | move, up/down, fast, speed |
 | F | fly / walk |
 | `[` `]`, T, L | scrub time, 120× clock, back to live time |
+| Z | weather: auto, clear, cloudy, rain, thunderstorm, dust storm |
 | 1–9, 0, -, =, ` | viewpoints: Vira, Saltbrush, highway, aerial, gate, substation, Halcyon, Nova's house, Ironwood, Juno's place, James's rover |
 | I O M P J K N | on foot inside: Vira lobby, ops room, Marcus's office, server aisle, Juno's workshop, Juno's loft, Nova's living room |
 | U | walk into the next data hall |
