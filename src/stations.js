@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { STATION_SITES } from './stationSites.js';
-import { Route, own, leg, sharedLine, saltIndexAtZ, dayIndex, dayStart, CITY_NAMES } from './commute.js';
+import { Route, own, leg, sharedLine, saltIndexAtZ, toHalcyon, dayIndex, dayStart, CITY_NAMES } from './commute.js';
 import { vehicleGeometry } from './props.js';
 import { HOMES } from './homes.js';
 import { HALCYON, IRONWOOD, CITY_GRID, IRON_GRID, TOWN_Z } from './heightfield.js';
@@ -12,7 +12,8 @@ import { localClock } from './sun.js';
 // (sites in stationSites.js), with their cruisers, engines and ambulances. Police patrol their
 // town around the clock (Saltbrush's also run the highway down to Vira's gate and back) with
 // breaks at the station; fire and EMS answer calls to houses in their town, lights flashing on the
-// way out, and come back after. Like everything else, it's a pure function of the world clock.
+// way out, and come back after; ambulances take their patient to Halcyon's hospital first. Like
+// everything else, it's a pure function of the world clock.
 const MIN = 60000, HOUR = 3600000;
 const ROAD_Y = { saltbrush: 0.3, halcyon: 0.08, ironwood: 0.08 };
 const LANE = 2.5;
@@ -44,6 +45,44 @@ function pathToHouse(city, from, home) {
   if (city === 'saltbrush') return [from, [0, from[1]], [0, zs], [dx, zs], [dx, dz]]; // Main Street is x = 0
   const G = GRID[city], xl = snap(dx, G.x0, G.g);
   return [from, [xl, from[1]], [xl, zs], [dx, zs], [dx, dz]];
+}
+
+// The hospital: a tower and an emergency wing with an ambulance canopy, doors facing +z.
+function hospitalBuilding() {
+  const g = new THREE.Group();
+  const mat = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.75, ...extra });
+  const add = (geo, m, x, y, z) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = o.receiveShadow = true; g.add(o); return o; };
+  const glass = nightEmissive(new THREE.MeshStandardMaterial({ color: '#3a4a58', emissive: '#fff0d0', roughness: 0.15, metalness: 0.6 }), 0.7);
+  // tower: eight floors with window bands
+  add(new THREE.BoxGeometry(64, 30, 30), mat('#e9e6df'), -8, 15, -10);
+  for (let f = 0; f < 8; f++) add(new THREE.BoxGeometry(64.1, 1.5, 30.1), glass, -8, 2.6 + f * 3.5, -10);
+  add(new THREE.BoxGeometry(66, 1, 32), mat('#8a9096'), -8, 30.5, -10);
+  // rooftop helipad
+  add(new THREE.CylinderGeometry(9, 9, 0.3, 32), mat('#4a4f55'), -8, 31.15, -10);
+  const H = canvasTex(256, 256, (c, w, h) => {
+    c.fillStyle = '#4a4f55'; c.fillRect(0, 0, w, h);
+    c.strokeStyle = '#f2f2f0'; c.lineWidth = 10; c.beginPath(); c.arc(w / 2, h / 2, w * 0.42, 0, Math.PI * 2); c.stroke();
+    c.fillStyle = '#f2f2f0'; c.font = 'bold 150px Arial'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('H', w / 2, h / 2 + 8);
+  });
+  const pad = new THREE.Mesh(new THREE.CircleGeometry(8.6, 32), new THREE.MeshStandardMaterial({ map: H, roughness: 0.8 }));
+  pad.rotation.x = -Math.PI / 2; pad.position.set(-8, 31.32, -10); g.add(pad);
+  // emergency wing, low, to the east, with a canopy over the ambulance bay
+  add(new THREE.BoxGeometry(30, 9, 26), mat('#ecebe6'), 38, 4.5, -8);
+  add(new THREE.BoxGeometry(30.1, 0.9, 26.1), mat('#d1261f'), 38, 7.6, -8);
+  add(new THREE.BoxGeometry(4, 2.8, 0.1), glass, 38, 1.4, 5.02);
+  add(new THREE.BoxGeometry(18, 0.5, 12), mat('#c9ccd0'), 38, 4.6, 11);                         // canopy
+  for (const x of [30, 46]) add(new THREE.CylinderGeometry(0.25, 0.25, 4.6, 10), mat('#9aa0a6'), x, 2.3, 16.5);
+  // signs
+  const sign = (text, bg, fg, w, x, y, z) => {
+    const tex = canvasTex(1024, 160, (c, cw, ch) => {
+      c.fillStyle = bg; c.fillRect(0, 0, cw, ch);
+      c.fillStyle = fg; c.font = 'bold 96px Arial, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(text, cw / 2, ch / 2 + 4);
+    });
+    add(new THREE.PlaneGeometry(w, w * 0.156), nightEmissive(new THREE.MeshStandardMaterial({ map: tex, emissive: '#ffffff', emissiveMap: tex, roughness: 0.6 }), 0.6), x, y, z);
+  };
+  sign('HALCYON HOSPITAL', '#1f3c6b', '#ffffff', 30, -8, 27.5, 5.1);
+  sign('EMERGENCY', '#d1261f', '#ffffff', 14, 38, 5.6, 17.1);
+  return g;
 }
 
 // ---------- geometry ----------
@@ -156,7 +195,21 @@ export function buildStations() {
   const units = [];
   const stations = [];
 
+  // Halcyon's hospital, and the ambulance bay under its canopy
+  const hs = STATION_SITES.find((s) => s.kind === 'hospital');
+  const hospital = (() => {
+    const yaw = Math.atan2(hs.face[0], hs.face[1]), y = ROAD_Y.halcyon;
+    const pad = new THREE.Mesh(new THREE.BoxGeometry(hs.w, 0.12, hs.d), new THREE.MeshStandardMaterial({ color: '#b9b6ae', roughness: 0.9 }));
+    pad.position.set(hs.x, y - 0.03, hs.z); pad.rotation.y = yaw; pad.receiveShadow = true;
+    group.add(pad);
+    const b = hospitalBuilding();
+    b.position.set(hs.x - 10, y + 0.03, hs.z - 6); b.rotation.y = yaw;
+    group.add(b);
+    return { street: hs.street, bay: [hs.x - 10 + 38, hs.z - 6 + 13], y };
+  })();
+
   for (const s of STATION_SITES) {
+    if (s.kind === 'hospital') continue;
     const [fx, fz] = s.face, y = ROAD_Y[s.city];
     const yaw = Math.atan2(fx, fz);                         // building frame: doors face +z
     const along = s.face[0] ? s.d : s.w, depth = s.face[0] ? s.w : s.d;
@@ -249,18 +302,53 @@ export function buildStations() {
       const what = u.kind === 'engine' ? ['Structure fire', 'Smoke alarm', 'Brush fire', 'Gas leak', 'Car fire'][Math.floor(r() * 5)]
         : ['Medical call', 'Fall', 'Chest pain', 'Breathing trouble', 'Allergic reaction'][Math.floor(r() * 5)];
       const pts = pathToHouse(u.city, u.station.street, home);
-      const out = routeOf([u.parkPt, ...pts], 16, u.station.y), back = routeOf([...pts].reverse().concat([u.parkPt]), 10, u.station.y);
+      const out = routeOf([u.parkPt, ...pts], 16, u.station.y);
       const scene = out.at(out.duration, {});
-      const dwell = (u.kind === 'engine' ? 30 + r() * 40 : 20 + r() * 25) * MIN;
-      const end = t0 + out.duration + dwell + back.duration;
+      const dwell = (u.kind === 'engine' ? 30 + r() * 40 : 15 + r() * 15) * MIN;
+      let transport = null, er = 0, back;
+      if (u.kind === 'ambulance') {
+        // the patient goes to Halcyon's hospital, then the ambulance goes home
+        transport = toHospital(u.city, home, 16);
+        er = (15 + r() * 15) * MIN;
+        back = fromHospital(u);
+      } else back = routeOf([...pts].reverse().concat([u.parkPt]), 10, u.station.y);
+      const end = t0 + out.duration + dwell + (transport ? transport.duration + er : 0) + back.duration;
       if (t0 < free + 10 * MIN) continue;               // still out on the last one
       free = end;
-      list.push({ t0, end, out, back, dwell, scene, what });
+      list.push({ t0, end, out, back, dwell, scene, what, transport, er, bay: transport && transport.at(transport.duration, {}) });
     }
     if (u.calls.size > 6) u.calls.clear();
     u.calls.set(d, list);
     return list;
   };
+
+  // ambulance runs to the hospital: Halcyon's on its own streets, the other towns' by highway
+  function toHospital(city, home, speed) {
+    const [dx, dz] = home.drive, zs = home.street;
+    if (city === 'halcyon') {
+      const G = GRID.halcyon, xl = snap(dx, G.x0, G.g), hz = hospital.street[1];
+      return new Route([own([[dx, dz], [dx, zs], [xl, zs], [xl, hz], hospital.street, hospital.bay], speed, LANE, hospital.y)]);
+    }
+    const town = own([[dx, dz], [dx, zs]], 6, 0, ROAD_Y[city]);
+    const end = own([hospital.street, hospital.bay], 6, 0, hospital.y);
+    return new Route([town, ...toHalcyon(city, [dx, zs], hospital.street).legs, end]);
+  }
+  // and back from the hospital to the ambulance's own station
+  const backRoutes = new Map();
+  function fromHospital(u) {
+    if (backRoutes.has(u.id)) return backRoutes.get(u.id);
+    const st = u.station;
+    let route;
+    if (u.city === 'halcyon') {
+      const G = GRID.halcyon, xl = snap(hospital.street[0], G.x0, G.g);
+      route = new Route([own([hospital.bay, hospital.street, [xl, hospital.street[1]], [xl, st.street[1]], st.street, u.parkPt], 11, LANE, hospital.y)]);
+    } else {
+      // the run from the station to the hospital, driven backwards
+      route = toHospital(u.city, { drive: u.parkPt, street: st.street[1] }, 16).reversed();
+    }
+    backRoutes.set(u.id, route);
+    return route;
+  }
 
   // ---------- per frame ----------
   const tmp = {};
@@ -284,7 +372,14 @@ export function buildStations() {
         const a = t - c.t0;
         if (a < c.out.duration) { const q = c.out.at(a, tmp); return { x: q.x, y: q.y, z: q.z, h: Math.atan2(q.hx, q.hz), speed: q.speed, lights: true, what: `Responding: ${c.what.toLowerCase()}`, moving: true, call: c, eta: c.out.duration - a }; }
         if (a < c.out.duration + c.dwell) return { x: c.scene.x, y: c.scene.y, z: c.scene.z, h: Math.atan2(c.scene.hx, c.scene.hz), speed: 0, lights: true, what: `On scene: ${c.what.toLowerCase()}`, call: c };
-        const q = c.back.at(a - c.out.duration - c.dwell, tmp);
+        let b = a - c.out.duration - c.dwell;
+        if (c.transport) {
+          if (b < c.transport.duration) { const q = c.transport.at(b, tmp); return { x: q.x, y: q.y, z: q.z, h: Math.atan2(q.hx, q.hz), speed: q.speed, lights: true, what: 'Taking the patient to Halcyon Hospital', moving: true, call: c, eta: c.transport.duration - b }; }
+          b -= c.transport.duration;
+          if (b < c.er) return { x: c.bay.x, y: c.bay.y, z: c.bay.z, h: Math.atan2(c.bay.hx, c.bay.hz), speed: 0, lights: false, what: 'At Halcyon Hospital, handing over the patient', call: c };
+          b -= c.er;
+        }
+        const q = c.back.at(b, tmp);
         return { x: q.x, y: q.y, z: q.z, h: Math.atan2(q.hx, q.hz), speed: q.speed, lights: false, what: 'Returning to the station', moving: true, call: c };
       }
     }

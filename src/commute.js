@@ -212,6 +212,22 @@ function lotLegs(stall) {
   ];
 }
 
+// From a point on a town street to a point on a Halcyon street (ambulances to the hospital, stations.js):
+// out of town onto the highway, down to the interstate junction, west to Halcyon and in off the freeway.
+export function toHalcyon(city, [fx, fz], [tx, tz]) {
+  const salt = sharedLine('saltbrush'), hal = sharedLine('halcyon');
+  const jz = saltIndexAtZ(hal.pts[0][1]);
+  let legs;
+  if (city === 'saltbrush') legs = [cityLegs('saltbrush', fx, fz)[0], leg(salt, saltIndexAtZ(fz), jz, 29, 1.8, 0.27)];
+  else {
+    const irn = sharedLine('ironwood');
+    legs = [...cityLegs('ironwood', fx, fz).slice(0, 4), leg(salt, saltIndexAtZ(irn.pts[0][1]), jz, 29, 1.8, 0.27)];
+  }
+  // the Halcyon end of a commuter's drive, run backwards (it starts on a city street)
+  const inCity = cityLegs('halcyon', tx, tz).slice(0, 4).reverse().map(reverseLeg);
+  return new Route([...legs, ...inCity]);
+}
+
 // A semi's run to a delivery bay at Vira and back (trucks.js), from a point on a town street.
 // Dock bays: along the north drive (between the docked semis' noses and the parked box trucks,
 // clear of the rover in Bay Three), swing the nose north, then back down to the hall's doors.
