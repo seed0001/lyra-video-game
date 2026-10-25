@@ -47,6 +47,54 @@ function pathToHouse(city, from, home) {
   return [from, [xl, from[1]], [xl, zs], [dx, zs], [dx, dz]];
 }
 
+// A town jail: a concrete cell block with slit windows, a sally port for the cruisers, and a fenced
+// exercise yard (Halcyon's has a guard tower). Doors face +z; returns the group and where a cruiser
+// pulls in to drop off (in the building's frame).
+function jailBuilding(city) {
+  const g = new THREE.Group();
+  const big = city === 'halcyon';
+  const w = big ? 46 : 30, d = big ? 26 : 20, h = big ? 12 : 8;
+  const mat = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.85, ...extra });
+  const add = (geo, m, x, y, z) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.castShadow = o.receiveShadow = true; g.add(o); return o; };
+  const concrete = mat('#bdb8ad'), dark = mat('#20252b'), steel = mat('#8f9498', { metalness: 0.6, roughness: 0.4 });
+  add(new THREE.BoxGeometry(w, h, d), concrete, 0, h / 2, 0);
+  add(new THREE.BoxGeometry(w + 0.6, 0.6, d + 0.6), mat('#8a8f94'), 0, h + 0.3, 0);
+  // slit windows on every side, a row per floor
+  const floors = big ? 3 : 2;
+  for (let f = 0; f < floors; f++) {
+    const y = 2.4 + f * 3.4;
+    for (let x = -w / 2 + 3; x <= w / 2 - 3; x += 3) for (const s of [-1, 1]) add(new THREE.BoxGeometry(0.35, 1.6, 0.08), dark, x, y, s * (d / 2 + 0.03));
+  }
+  // entrance and sally port (a roll-up door the cruisers back into)
+  const glass = nightEmissive(new THREE.MeshStandardMaterial({ color: '#2a3640', emissive: '#ffe2b0', roughness: 0.15, metalness: 0.6 }), 0.8);
+  add(new THREE.BoxGeometry(2.6, 2.6, 0.1), glass, -w / 2 + 5, 1.3, d / 2 + 0.04);
+  add(new THREE.BoxGeometry(5, 4, 0.12), steel, w / 2 - 6, 2, d / 2 + 0.05);
+  add(new THREE.BoxGeometry(6.4, 0.4, 4), mat('#5b5f63'), w / 2 - 6, 4.3, d / 2 + 2);
+  for (const s of [-1, 1]) add(new THREE.SphereGeometry(0.2, 10, 8), nightEmissive(mat('#333', { emissive: '#ffd9a0' }), 4), -w / 2 + 5 + s * 1.8, 2.8, d / 2 + 0.3);
+  // fenced yard behind the cell block
+  const yw = w - 6, yd = big ? 22 : 14, yz = -d / 2 - yd / 2 - 1;
+  const fence = new THREE.MeshStandardMaterial({ color: '#9aa0a6', metalness: 0.5, roughness: 0.5, transparent: true, opacity: 0.45, side: THREE.DoubleSide, depthWrite: false });
+  add(new THREE.BoxGeometry(yw, 0.06, yd), mat('#9a948a'), 0, 0.03, yz);
+  for (const [fw, fx, fz, ry] of [[yw, 0, yz - yd / 2, 0], [yd, -yw / 2, yz, Math.PI / 2], [yd, yw / 2, yz, Math.PI / 2]]) {
+    const p = add(new THREE.PlaneGeometry(fw, 4), fence, fx, 2, fz); p.rotation.y = ry; p.castShadow = false;
+    const wire = add(new THREE.CylinderGeometry(0.28, 0.28, fw, 10), steel, fx, 4.3, fz); wire.rotation.z = Math.PI / 2; wire.rotation.y = ry;
+  }
+  for (let x = -yw / 2; x <= yw / 2 + 0.01; x += 4) add(new THREE.CylinderGeometry(0.06, 0.06, 4.3, 6), steel, x, 2.15, yz - yd / 2);
+  for (let z = yz - yd / 2; z <= yz + yd / 2 + 0.01; z += 4) for (const s of [-1, 1]) add(new THREE.CylinderGeometry(0.06, 0.06, 4.3, 6), steel, s * yw / 2, 2.15, z);
+  add(new THREE.BoxGeometry(6, 0.1, 4), mat('#c46a3a'), -yw / 4, 0.08, yz);                      // basketball half court
+  if (big) {
+    // guard tower at the yard's far corner
+    add(new THREE.BoxGeometry(2.4, 9, 2.4), concrete, yw / 2 + 2, 4.5, yz - yd / 2 - 2);
+    add(new THREE.BoxGeometry(4, 2.4, 4), glass, yw / 2 + 2, 10.2, yz - yd / 2 - 2);
+    add(new THREE.BoxGeometry(4.6, 0.4, 4.6), mat('#5b5f63'), yw / 2 + 2, 11.6, yz - yd / 2 - 2);
+  }
+  // sign
+  const label = `${CITY_NAMES[city].toUpperCase()} JAIL`;
+  const tex = signTexture(label, '#3a3f45', '#ffffff');
+  add(new THREE.PlaneGeometry(Math.min(w - 8, 16), 2.5), nightEmissive(new THREE.MeshStandardMaterial({ map: tex, emissive: '#ffffff', emissiveMap: tex, roughness: 0.6 }), 0.5), -2, h - 2, d / 2 + 0.06);
+  return { group: g, port: [w / 2 - 6, d / 2 + 6], depth: d };
+}
+
 // The hospital: a tower and an emergency wing with an ambulance canopy, doors facing +z.
 function hospitalBuilding() {
   const g = new THREE.Group();
@@ -208,8 +256,26 @@ export function buildStations() {
     return { street: hs.street, bay: [hs.x - 10 + 38, hs.z - 6 + 13], y };
   })();
 
+  // a jail beside each police station: where the drop-off is, in world space
+  const jails = {};
+  for (const s of STATION_SITES.filter((x) => x.kind === 'jail')) {
+    const yaw = Math.atan2(s.face[0], s.face[1]), y = ROAD_Y[s.city];
+    const depth = s.face[0] ? s.w : s.d, along = s.face[0] ? s.d : s.w;
+    const pad = new THREE.Mesh(new THREE.BoxGeometry(along, 0.12, depth), new THREE.MeshStandardMaterial({ color: '#b9b6ae', roughness: 0.9 }));
+    pad.position.set(s.x, y - 0.03, s.z); pad.rotation.y = yaw; pad.receiveShadow = true;
+    group.add(pad);
+    const j = jailBuilding(s.city);
+    // cell block near the street, the yard behind it
+    const front = depth / 2 - j.depth / 2 - 10;
+    const bx = s.x + s.face[0] * front, bz = s.z + s.face[1] * front;
+    j.group.position.set(bx, y + 0.03, bz); j.group.rotation.y = yaw;
+    group.add(j.group);
+    const c = Math.cos(yaw), sn = Math.sin(yaw), [px, pz] = j.port;
+    jails[s.city] = { street: s.street, port: [bx + px * c + pz * sn, bz - px * sn + pz * c], y };
+  }
+
   for (const s of STATION_SITES) {
-    if (s.kind === 'hospital') continue;
+    if (s.kind === 'hospital' || s.kind === 'jail') continue;
     const [fx, fz] = s.face, y = ROAD_Y[s.city];
     const yaw = Math.atan2(fx, fz);                         // building frame: doors face +z
     const along = s.face[0] ? s.d : s.w, depth = s.face[0] ? s.w : s.d;
@@ -280,6 +346,17 @@ export function buildStations() {
         const z1 = out[1] + deep;
         const loop = [u.parkPt, out, [x1, out[1]], [x1, z1], [xs, z1], [xs, out[1]], out, u.parkPt];
         steps = [{ route: routeOf(loop, 12, y), what: `On patrol in ${CITY_NAMES[st.city]}` }, { ms: (15 + r() * 20) * MIN, ...atPark(u, 'At the station') }];
+      }
+      // the first patroller brings someone in every couple of hours: over to the jail, booking, back
+      if (k === 0) {
+        const jl = jails[st.city];
+        const there = routeOf([u.parkPt, st.street, jl.street, jl.port], 8, y);
+        const drop = there.at(there.duration, {});
+        const loops = Math.max(1, Math.round(150 * MIN / steps[0].route.duration));
+        steps.splice(1, 0, ...Array(loops - 1).fill(steps[0]),
+          { route: there, what: 'Bringing an arrest to the jail' },
+          { ms: 20 * MIN, wait: true, x: drop.x, y: drop.y, z: drop.z, h: Math.atan2(drop.hx, drop.hz), what: 'At the jail, booking an arrest' },
+          { route: there.reversed(), what: 'Back to the station' });
       }
       u.program = { steps, offset: k * 23 * MIN + st.city.length * 7 * MIN };
       let total = 0; for (const s of steps) total += s.route ? s.route.duration : s.ms;

@@ -1,7 +1,7 @@
 import { HALCYON, IRONWOOD, CITY_GRID, IRON_GRID, TOWN_Z } from './heightfield.js';
 
 // Where each town's first responders are based: a police station, a fire station and an EMS
-// station per town, and Halcyon's hospital. Halcyon and Ironwood each give up whole blocks (the city
+// station per town, a jail beside each police station, and Halcyon's hospital. Halcyon and Ironwood each give up whole blocks (the city
 // builders skip anything inside these lots, see isStationLot); Saltbrush's sit on open ground at the
 // north end of Main Street. Each site: { city, kind, x, z (center), w, d (lot size), face: [fx, fz] (the street the
 // doors open onto, as a unit direction), street: point on that street in front of the doors }.
@@ -18,16 +18,19 @@ export const STATION_SITES = [
   site('saltbrush', 'police', [48, T - 575], 40, 44, [-1, 0], 48),
   site('saltbrush', 'fire', [-50, T - 570], 44, 40, [1, 0], 50),
   site('saltbrush', 'ems', [-50, T - 640], 40, 34, [1, 0], 50),
+  site('saltbrush', 'jail', [52, T - 645], 48, 52, [-1, 0], 52),
   // Halcyon: three midtown blocks east of the freeway's end, doors onto the street to the south
   site('halcyon', 'police', hal(11, 5), 120, 120, [0, 1], 70),
   site('halcyon', 'fire', hal(12, 5), 120, 120, [0, 1], 70),
   site('halcyon', 'ems', hal(11, 6), 120, 120, [0, 1], 70),
+  site('halcyon', 'jail', hal(10, 5), 120, 120, [0, 1], 70),
   // the hospital every town's ambulances take patients to, next door to Halcyon EMS
   site('halcyon', 'hospital', hal(12, 6), 120, 120, [0, 1], 70),
   // Ironwood: a row of industrial blocks north of the rail yard, doors onto the street to the south
   site('ironwood', 'police', irn(-3, 5), 80, 80, [0, 1], 50),
   site('ironwood', 'fire', irn(-2, 5), 80, 80, [0, 1], 50),
   site('ironwood', 'ems', irn(-4, 5), 80, 80, [0, 1], 50),
+  site('ironwood', 'jail', irn(-5, 5), 80, 80, [0, 1], 50),
 ];
 
 // Inside a station's lot (the city builders leave these empty).
