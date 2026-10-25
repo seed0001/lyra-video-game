@@ -116,20 +116,20 @@ function cumulative(pts) {
   return c;
 }
 const shared = {};
-function sharedLine(id) {
+export function sharedLine(id) {
   if (!shared[id]) { const pts = roadPolyline(id, 8); shared[id] = { pts, cum: cumulative(pts) }; }
   return shared[id];
 }
-function leg(line, i0, i1, speed, lane, y) {
+export function leg(line, i0, i1, speed, lane, y) {
   return { pts: line.pts, cum: line.cum, i0, i1, dir: i1 >= i0 ? 1 : -1, len: Math.abs(line.cum[i1] - line.cum[i0]), speed, lane, y };
 }
-function own(points, speed, lane, y) {
+export function own(points, speed, lane, y) {
   const line = { pts: points, cum: cumulative(points) };
   return leg(line, 0, points.length - 1, speed, lane, y);
 }
 const reverseLeg = (L) => ({ ...L, i0: L.i1, i1: L.i0, dir: -L.dir });
 
-class Route {
+export class Route {
   constructor(legs) {
     this.legs = legs.filter((L) => L.len > 0.01);
     this.t0 = [];
@@ -164,7 +164,7 @@ class Route {
 }
 
 const I = IRONWOOD;
-const saltIndexAtZ = (z) => Math.round((z - ROAD_START) / 8);
+export const saltIndexAtZ = (z) => Math.round((z - ROAD_START) / 8);
 
 // Home driveway -> streets -> highway -> Vira's gate -> a parking stall.
 function routeToWork(home, stall) {

@@ -12,6 +12,7 @@ import { buildPeople } from './people.js';
 import { buildCast, tagFixed } from './cast.js';
 import { buildPatch } from './patch.js';
 import { buildDeliveries } from './trucks.js';
+import { buildStations } from './stations.js';
 import { buildHallInterior, hallCenter, hallName, HL } from './hallInterior.js';
 import { buildRoad, roadPath } from './road.js';
 import { buildDataCenter } from './datacenter.js';
@@ -126,6 +127,8 @@ const traffic = await step('Sending everyone to work…', () => buildTraffic(ros
 scene.add(traffic.group);
 const deliveries = await step('Dispatching the semis…', () => buildDeliveries());
 scene.add(deliveries.group);
+const responders = await step('Staffing the police and fire stations…', () => buildStations());
+scene.add(responders.group);
 const halls = await step('Fitting out the data halls…', () => buildHallInterior());
 scene.add(halls.group);
 const people = await step('Clocking everyone in…', () => buildPeople());
@@ -268,7 +271,11 @@ controls.onKey = (code) => {
   // follow the cast: R cycles through them
   if (code === 'KeyR') { traffic.unfollow(); people.unfollow(); deliveries.unfollow(); cast.followNext(); }
   // follow a semi: Y cycles through the ones on the road
-  if (code === 'KeyY') { traffic.unfollow(); people.unfollow(); cast.unfollow(); deliveries.followNext(); }
+  if (code === 'KeyY') { traffic.unfollow(); people.unfollow(); cast.unfollow(); responders.unfollow(); deliveries.followNext(); }
+  // follow police, fire and EMS: X cycles through units on a call first
+  if (code === 'KeyX') { traffic.unfollow(); people.unfollow(); cast.unfollow(); deliveries.unfollow(); responders.followNext(); }
+  if (code === 'KeyR' || code === 'KeyV' || code === 'KeyB' || code === 'KeyE') responders.unfollow();
+  if (code === 'KeyR') deliveries.unfollow();
   if (code === 'KeyV' || code === 'KeyB' || code === 'KeyE') { cast.unfollow(); deliveries.unfollow(); }
   // follow a worker on foot: E grabs the nearest one in sight
   if (code === 'KeyE') { traffic.unfollow(); people.followNearest(camera.position); }
@@ -280,7 +287,7 @@ controls.onKey = (code) => {
     controls.mode = 'walk';
   }
   const leave = /^Key[WASDIOMPJKNU]$|^Digit|^Minus$|^Equal$|^Backquote$|^Escape$/.test(code);
-  if (leave) { traffic.unfollow(); cast.unfollow(); deliveries.unfollow(); if (code !== 'KeyE') people.unfollow(); }
+  if (leave) { traffic.unfollow(); cast.unfollow(); deliveries.unfollow(); responders.unfollow(); if (code !== 'KeyE') people.unfollow(); }
   if (viewpoints[code]) {
     controls.place(...viewpoints[code]);
     controls.mode = WALK_VIEWS.includes(code) ? 'walk' : 'fly';
@@ -373,16 +380,17 @@ function updateHud(dt) {
     `Vira staff: ${traffic.counts.onSite} on site &middot; ${traffic.counts.commuting} driving<br>` +
     `&nbsp;&nbsp;${people.counts.working} working outside or in the halls &middot; ${people.counts.walking} walking &middot; ${people.counts.inside} in the ops building<br>` +
     `Semis: ${deliveries.counts.road} on the road &middot; ${deliveries.counts.bay} unloading at Vira<br>` +
+    `Police: ${responders.counts.patrol} on patrol &middot; fire &amp; EMS: ${responders.counts.calls} on calls<br>` +
     `<b>CAST</b> <span style="opacity:.6">(R to follow)</span><br>${cast.brief().join('<br>')}`;
-  followPanel.innerHTML = deliveries.following ? deliveries.describe(simMs) : cast.following ? cast.describe(simMs) : traffic.following ? traffic.describe(simMs) : people.describe(simMs);
-  followPanel.classList.toggle('hidden', !traffic.following && !people.following && !cast.following && !deliveries.following);
+  followPanel.innerHTML = responders.following ? responders.describe(simMs) : deliveries.following ? deliveries.describe(simMs) : cast.following ? cast.describe(simMs) : traffic.following ? traffic.describe(simMs) : people.describe(simMs);
+  followPanel.classList.toggle('hidden', !traffic.following && !people.following && !cast.following && !deliveries.following && !responders.following);
   drawMinimap();
 }
 
 // ---------- loop ----------
 document.getElementById('loading').remove();
 window.world = {
-  scene, renderer, camera, controls, pipe, traffic, people, cast, patch, deliveries, halls, indoorFill,
+  scene, renderer, camera, controls, pipe, traffic, people, cast, patch, deliveries, responders, halls, indoorFill,
   // jump the world clock to a Death Valley local hour today (for testing)
   setHour: (h) => {
     const parts = new Intl.DateTimeFormat('en-US', { timeZone: DEATH_VALLEY.tz, hour: 'numeric', minute: 'numeric', hourCycle: 'h23' }).formatToParts(new Date(simMs));
@@ -409,10 +417,11 @@ renderer.setAnimationLoop(() => {
 
   const castAtGate = cast.update(simMs, dt * timeRate, dt);
   const truckAtGate = deliveries.update(simMs, dt * timeRate);
+  responders.update(simMs, dt * timeRate, dt);
   dc.gate.auto = traffic.update(simMs, dt * timeRate) || castAtGate || truckAtGate;
   halls.update(camera.position);
   people.update(simMs, camera.position, halls.current);
-  if (traffic.following || (people.following && people.chase(camera, dt)) || (cast.following && cast.chase(camera, dt)) || (deliveries.following && deliveries.chase(camera, dt))) {
+  if (traffic.following || (people.following && people.chase(camera, dt)) || (cast.following && cast.chase(camera, dt)) || (deliveries.following && deliveries.chase(camera, dt)) || (responders.following && responders.chase(camera, dt))) {
     if (traffic.following) traffic.chase(camera, dt);
     // keep the free camera pointed the same way, so leaving follow mode doesn't jump
     const dir = camera.getWorldDirection(new THREE.Vector3());

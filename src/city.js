@@ -7,6 +7,7 @@ import { facadeMaterial } from './facade.js';
 import { buildCars, buildTrucks, buildLightPoles, buildPalms } from './props.js';
 import { ribbon } from './road.js';
 import { HOMES } from './homes.js';
+import { isStationLot } from './stationSites.js';
 
 // Halcyon: Nova's city. A metropolis on a flat basin floor ringed by chaparral hills.
 // Downtown towers at the center, a midtown ring of mid-rises, suburbs of single-family
@@ -22,6 +23,7 @@ export class Batches {
   add(name, m, color) {
     const t = this.types.get(name);
     this.p.setFromMatrixPosition(m);
+    if (isStationLot(this.p.x, this.p.z)) return; // left for the police, fire and EMS stations (stations.js)
     const k = `${Math.floor(this.p.x / this.sector)},${Math.floor(this.p.z / this.sector)}`;
     if (!t.cells.has(k)) t.cells.set(k, { m: [], c: [] });
     const cell = t.cells.get(k);
@@ -216,8 +218,9 @@ export function buildHalcyon() {
 
   B.build(g);
   g.add(buildLightPoles(lamps, 9));
-  g.add(buildCars(cars, 77));
-  g.add(buildTrucks(trucks, 9));
+  const clear = (list) => list.filter((v) => !isStationLot(v.x, v.z));
+  g.add(buildCars(clear(cars), 77));
+  g.add(buildTrucks(clear(trucks), 9));
   g.add(buildPalms(palms));
 
   // traffic signals: mast arm with three heads; lenses always lit

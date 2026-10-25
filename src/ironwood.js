@@ -8,6 +8,7 @@ import { Batches, worldUV, streetMaterial } from './city.js';
 import { buildCars, buildTrucks, buildLightPoles, buildPalms, buildTrees, contactShadows } from './props.js';
 import { ribbon } from './road.js';
 import { HOMES } from './homes.js';
+import { isStationLot } from './stationSites.js';
 
 // Ironwood: Juno's city. An old railroad town that turned into a repair town: a brick main
 // street, a rail yard with freight cars, silos and a water tower, auto shops, junkyards and
@@ -177,9 +178,10 @@ export function buildIronwood() {
 
   B.build(g);
   g.add(buildLightPoles(lamps, 8.5));
-  g.add(buildCars(cars, 12));
-  g.add(buildCars(wrecks.map((w) => ({ ...w, color: ['#6b4a3a', '#7a6a55', '#5a5f63', '#8a3a2a', '#9a8a6a', '#3d4a3a', '#4a4a50'][Math.floor(r() * 7)] })), 13));
-  g.add(buildTrucks(trucks, 14));
+  const clear = (list) => list.filter((v) => !isStationLot(v.x, v.z));
+  g.add(buildCars(clear(cars), 12));
+  g.add(buildCars(clear(wrecks).map((w) => ({ ...w, color: ['#6b4a3a', '#7a6a55', '#5a5f63', '#8a3a2a', '#9a8a6a', '#3d4a3a', '#4a4a50'][Math.floor(r() * 7)] })), 13));
+  g.add(buildTrucks(clear(trucks), 14));
   g.add(buildTrees(trees));
   g.add(buildPalms(palms));
   g.add(buildSigns(signs));
