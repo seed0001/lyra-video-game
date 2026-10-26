@@ -1,8 +1,7 @@
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { gltfLoader as loader } from './loaders.js';
 
-// Hero vehicles from Meshy (converted to Draco GLB in game/assets/vehicles).
+// Hero vehicles from Meshy (meshopt GLBs with KTX2 textures in assets/vehicles, see build/optimize-assets.mjs).
 // Each is normalized on load: real-world length, long axis along +z, wheels on y = 0.
 // `yaw` turns the model so its nose points +z (checked by eye against the vehicle card).
 export const VEHICLES = {
@@ -11,10 +10,6 @@ export const VEHICLES = {
   james_rover: { file: 'assets/vehicles/james_rover.glb', length: 6.4, yaw: Math.PI / 2 },
 };
 
-const draco = new DRACOLoader();
-draco.setDecoderPath('https://unpkg.com/three@0.169.0/examples/jsm/libs/draco/gltf/');
-const loader = new GLTFLoader();
-loader.setDRACOLoader(draco);
 const cache = new Map();
 
 async function loadNormalized(name) {

@@ -1,32 +1,27 @@
 import * as THREE from 'three';
+import { loadImage } from './loaders.js';
 
 // Full-body cast figures from the series character sheets (cropped + regenerated isolates
 // in game/assets/characters/). Without a Meshy pipeline these are high-detail textured
 // volumetric impostors (crossed alpha planes) scaled to real height — the same approach
 // the desert uses for Joshua trees, at character resolution.
 
-const loader = new THREE.TextureLoader();
 const cache = new Map();
 
 export const CHARACTERS = {
-  lyra:   { file: 'assets/characters/lyra_body.png',   height: 1.72, kind: 'hologram' },
-  marcus: { file: 'assets/characters/marcus_body.png', height: 1.80, kind: 'human' },
-  juno:   { file: 'assets/characters/juno_body.png',   height: 1.68, kind: 'human' },
-  nova:   { file: 'assets/characters/nova_body.png',   height: 1.70, kind: 'human' },
-  james:  { file: 'assets/characters/james_body.png',  height: 1.78, kind: 'human' },
-  patch:  { file: 'assets/characters/patch_body.png',  height: 0.62, kind: 'dog',
-            side: 'assets/characters/patch_side.png' },
+  lyra:   { file: 'assets/characters/lyra_body.ktx2',   height: 1.72, kind: 'hologram' },
+  marcus: { file: 'assets/characters/marcus_body.ktx2', height: 1.80, kind: 'human' },
+  juno:   { file: 'assets/characters/juno_body.ktx2',   height: 1.68, kind: 'human' },
+  nova:   { file: 'assets/characters/nova_body.ktx2',   height: 1.70, kind: 'human' },
+  james:  { file: 'assets/characters/james_body.ktx2',  height: 1.78, kind: 'human' },
+  patch:  { file: 'assets/characters/patch_body.ktx2',  height: 0.62, kind: 'dog',
+            side: 'assets/characters/patch_side.ktx2' },
 };
 
-function loadTex(url) {
-  return new Promise((resolve, reject) => {
-    loader.load(url, (t) => {
-      t.colorSpace = THREE.SRGBColorSpace;
-      t.anisotropy = 8;
-      t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
-      resolve(t);
-    }, undefined, reject);
-  });
+async function loadTex(url) {
+  const t = await loadImage(url);
+  t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+  return t;
 }
 
 async function getMaps(name) {

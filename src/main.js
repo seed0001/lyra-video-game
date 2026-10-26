@@ -24,6 +24,7 @@ import { floorAt, roomAt, initInteriorLights, updateInteriors, toWorld, indoorFi
 import { createPipeline, buildClouds, cloudUniforms } from './render.js';
 import { setNight, smoothstep } from './util.js';
 import { sunPosition, moonPosition, localClock, localDate, DEATH_VALLEY } from './sun.js';
+import { initLoaders } from './loaders.js';
 
 const renderer = new THREE.WebGLRenderer({ antialias: false, logarithmicDepthBuffer: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
@@ -32,6 +33,7 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.prepend(renderer.domElement);
+initLoaders(renderer); // KTX2 textures pick their GPU format from the renderer
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.3, 220000);

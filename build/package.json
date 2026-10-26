@@ -1,0 +1,22 @@
+{
+  "name": "lyra-world-build",
+  "private": true,
+  "type": "module",
+  "description": "Build tooling for the Lyra world: bundles src/ with esbuild and optimizes assets/. Kept out of the repo root so Railway still deploys the site as a plain Python static server.",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs --watch",
+    "assets": "node optimize-assets.mjs"
+  },
+  "devDependencies": {
+    "@gltf-transform/core": "^4.5.1",
+    "@gltf-transform/extensions": "^4.5.1",
+    "@gltf-transform/functions": "^4.5.1",
+    "draco3dgltf": "^1.5.9",
+    "esbuild": "^0.28.2",
+    "ktx2-encoder": "^0.6.0",
+    "meshoptimizer": "^1.3.0",
+    "sharp": "^0.35.5",
+    "three": "^0.169.0"
+  }
+}

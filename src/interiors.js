@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { ktx2Loader, fill } from './loaders.js';
 
 // Walkable interiors: a registry of rooms (floor overrides for walk mode), a loader for the
 // series stills used on screens and key surfaces, and a small pool of point lights that
@@ -108,24 +109,25 @@ export function plane(parent, w, h, x, y, z, mat, { ry = 0, rx = 0, receive = tr
 }
 
 // ---------- series stills ----------
-// crop = [u0, v0, u1, v1] as fractions of the image, measured from its top-left corner.
-const loader = new THREE.TextureLoader();
+// crop = [u0, v0, u1, v1] as fractions of the image, measured from its top-left corner. The stills are
+// KTX2 (assets/refs/*.ktx2); each crop is its own texture sharing the image once it arrives.
 const stills = new Map();
 export function loadRefTex(name, crop = [0, 0, 1, 1]) {
   if (!stills.has(name)) {
-    const entry = { base: null, copies: [] };
-    entry.base = loader.load(`assets/refs/${name}`, () => { for (const t of entry.copies) t.needsUpdate = true; }, undefined,
-      () => console.warn('missing still', name));
-    entry.base.colorSpace = THREE.SRGBColorSpace;
+    const entry = { src: null, copies: [] };
+    ktx2Loader.loadAsync(`assets/refs/${name.replace(/\.png$/, '.ktx2')}`)
+      .then((src) => { entry.src = src; for (const t of entry.copies) fill(t, src); }, () => console.warn('missing still', name));
     stills.set(name, entry);
   }
   const entry = stills.get(name);
-  const t = entry.base.clone();
+  const t = new THREE.CompressedTexture(null, 0, 0);
+  t.colorSpace = THREE.SRGBColorSpace;
   const [u0, v0, u1, v1] = crop;
   t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
   t.repeat.set(u1 - u0, v1 - v0);
   t.offset.set(u0, 1 - v1);
   t.anisotropy = 8;
+  if (entry.src) fill(t, entry.src);
   entry.copies.push(t);
   return t;
 }
